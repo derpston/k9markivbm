@@ -8,7 +8,10 @@ class usbhid(fruitfly.Module):
     press and release events."""
 
     # USB HID devices tend to use USB endpoint 0x81.
-    _endpoint = 0x81
+    _default_endpoint = 0x81
+    
+    # USB HID devices tend to use USB interface 0.
+    _default_interface = 0
 
     # A set of keys currently pressed by meaty fingers.
     _keyspressed = set()
@@ -19,6 +22,13 @@ class usbhid(fruitfly.Module):
     def _setup(self):
         """Locates and opens the keyboard whose vendor/product IDs are
         defined in the config."""
+        self.config['endpoint'] = self.config.get('endpoint',
+            self._default_endpoint)
+        self.config['interface'] = self.config.get('interface',
+            self._default_interface)
+        self.logger.debug("Using endpoint 0x%2x and interface %d" %  
+            (self.config['endpoint'], self.config['interface']))
+
         self._device = self._getDevice(self.config['vendor'], 
             self.config['product'])
 
@@ -38,12 +48,12 @@ class usbhid(fruitfly.Module):
         claim the first interface. After that, the device is ready to use."""   
         handle = device.open()
         try:
-            handle.detachKernelDriver(0)
+            handle.detachKernelDriver(self.config['interface'])
         except:
             # Ignore failures here, the device might already be detached.
             pass
 
-        handle.claimInterface(0)
+        handle.claimInterface(self.config['interface'])
         return handle
 
     @fruitfly.repeat(0.01)
@@ -58,12 +68,12 @@ class usbhid(fruitfly.Module):
         # Try to read 8 bytes from the keyboard, with a 1s timeout.
         data = None
         try:
-            data = self._handle.interruptRead(self._endpoint, 8, 1000)
+            data = self._handle.interruptRead(self.config['endpoint'], 8, 1000)
         except usb.USBError as ex:
             # Py2 vs 3 compatibility
             message = ex.strerror or ex.message
             if message not in ["Operation timed out", \
-                "could not detach kernel driver from interface 0: No data available", \
+                "could not detach kernel driver from interface %d: No data available" % self.config['interface'], \
                 "No error"]:
                 # The above errors are harmless, but for others we should
                 # discard the device/handle objects and try to reopen it.
