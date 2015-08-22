@@ -1,8 +1,14 @@
 logging:
-  level: info
+  level: debug
   destination: stderr
 modules:
-  usbhid:
-    # Flexible USB keyboard for use in dev.
-    vendor: 0x0e6a
-    product: 0x6001
+  - usbhid:
+      # Wired numeric keypad
+      vendor: 0x13ba
+      product: 0x0001
+  - usbhid:
+      # Wireless numeric keypad
+      vendor: 0x279e
+      product: 0x024e
+      endpoint: 0x82
+      interface: 1
